@@ -1,0 +1,23 @@
+<configuration name="verto.conf" description="Verto WebRTC Configuration">
+  <profiles>
+    <profile name="default">
+      <param name="bind-address" value="0.0.0.0"/>
+      <param name="bind-port" value="8082"/>
+      <param name="tls-bind-port" value="8083"/>
+      <param name="tls-cert" value="/etc/freeswitch/tls/wss.pem"/>
+      <param name="tls-key" value="/etc/freeswitch/tls/wss.key"/>
+      <param name="tls-ca" value="/etc/freeswitch/tls/ca.pem"/>
+      <param name="stun" value="stun:stun.l.google.com:19302"/>
+      <param name="turn" value="turn:${TURN_SERVER}:3478?transport=udp"/>
+      <param name="turn" value="turn:${TURN_SERVER}:3478?transport=tcp"/>
+      <param name="turn-user" value="${TURN_USER}"/>
+      <param name="turn-pass" value="${TURN_PASS}"/>
+      <param name="enable-rtp" value="true"/>
+      <param name="enable-ice" value="true"/>
+      <param name="enable-dtls" value="true"/>
+      <param name="force-rtp-proxy" value="true"/>
+      <param name="apply-inbound-acl" value="localnet.auto"/>
+      <param name="debug" value="0"/>
+    </profile>
+  </profiles>
+</configuration>
