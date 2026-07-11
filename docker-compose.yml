@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  freeswitch:
+    image: freeswitch:latest
+    container_name: voip-freeswitch
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+    volumes:
+      - ./freeswitch/conf:/etc/freeswitch
+      - ./freeswitch/recordings:/var/spool/freeswitch/recordings
+      - ./freeswitch/log:/var/log/freeswitch
+      - ./freeswitch/tls:/etc/freeswitch/tls
+      - ./freeswitch/scripts:/usr/share/freeswitch/scripts
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5061:5061/tcp"
+      - "5066:5066/tcp"
+      - "7443:7443/tcp"
+      - "8082:8082/tcp"
+      - "8083:8083/tcp"
+      - "16384-32768:16384-32768/udp"
+    networks:
+      - voip-net
+    healthcheck:
+      test: ["CMD", "fs_cli", "-x", "version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  turn:
+    image: coturn/coturn:latest
+    container_name: voip-turn
+    restart: unless-stopped
+    environment:
+      - TURN_USER=${TURN_USER:-turnuser}
+      - TURN_PASS=${TURN_PASS:-changeme_strong_password}
+      - REALM=${REALM:-voip.local}
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "5349:5349/tcp"
+    command: >
+      -n --no-dtls --no-tls
+      --realm=${REALM:-voip.local}
+      --user=${TURN_USER}:${TURN_PASS}
+      --lt-cred-mech
+      --verbose
+    networks:
+      - voip-net
+
+  web-dialer:
+    image: nginx:alpine
+    container_name: voip-web-dialer
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web-dialer:/usr/share/nginx/html:ro
+    networks:
+      - voip-net
+
+networks:
+  voip-net:
+    driver: bridge

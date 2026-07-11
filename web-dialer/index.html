@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoIP Dialer</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;color:#eee}
+    .container{background:rgba(255,255,255,0.05);border-radius:20px;padding:40px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.3);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);position:relative}
+    h1{text-align:center;margin-bottom:10px;font-size:28px;font-weight:600;background:linear-gradient(135deg,#00d4ff 0%,#0099ff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .status{text-align:center;padding:12px;border-radius:10px;margin-bottom:24px;font-weight:500;font-size:14px}
+    .status.connected{background:rgba(0,212,255,0.15);color:#00d4ff}
+    .status.connecting{background:rgba(255,193,7,0.15);color:#ffc107}
+    .status.disconnected{background:rgba(244,67,54,0.15);color:#f44336}
+    .status.error{background:rgba(244,67,54,0.2);color:#ff6b6b}
+    .status.active{background:rgba(76,175,80,0.15);color:#4caf50}
+    .display{background:rgba(0,0,0,0.3);border-radius:12px;padding:20px;margin-bottom:24px;text-align:center;font-size:28px;font-weight:500;letter-spacing:2px;font-family:'SF Mono','Fira Code',monospace;min-height:68px;border:1px solid rgba(255,255,255,0.05)}
+    .dialpad{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+    .btn{aspect-ratio:1;border:none;border-radius:16px;font-size:24px;font-weight:500;background:rgba(255,255,255,0.08);color:#eee;cursor:pointer;transition:all .15s ease;display:flex;align-items:center;justify-content:center;position:relative}
+    .btn:hover{background:rgba(0,212,255,0.2);transform:scale(1.05)}
+    .btn:active{transform:scale(0.95);background:rgba(0,212,255,0.3)}
+    .btn:focus-visible{outline:2px solid #00d4ff;outline-offset:2px}
+    .btn span{font-size:11px;color:#888;position:absolute;bottom:6px}
+    .btn-call,.btn-hangup{grid-column:span 3;font-size:16px;font-weight:600;padding:16px;border-radius:12px}
+    .btn-call{background:linear-gradient(135deg,#00d4ff 0%,#0099ff 100%);color:#001}
+    .btn-call:hover{box-shadow:0 8px 30px rgba(0,212,255,0.4)}
+    .btn-hangup{background:linear-gradient(135deg,#f44336 0%,#d32f2f 100%);color:#fff;display:none}
+    .btn-hangup:hover{box-shadow:0 8px 30px rgba(244,67,54,0.4)}
+    .btn-hangup.active{display:flex}
+    .controls{display:flex;gap:12px;margin-bottom:20px}
+    .control-btn{flex:1;padding:12px;border:none;border-radius:10px;background:rgba(255,255,255,0.08);color:#eee;cursor:pointer;transition:all .15s;font-size:13px;font-weight:500}
+    .control-btn:hover{background:rgba(0,212,255,0.2)}
+    .control-btn.active{background:rgba(0,212,255,0.3);color:#00d4ff}
+    .settings-btn{position:absolute;top:20px;right:20px;background:none;border:none;color:#888;cursor:pointer;font-size:20px;transition:color .2s}
+    .settings-btn:hover{color:#00d4ff}
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(5px);z-index:100;align-items:center;justify-content:center}
+    .modal.active{display:flex}
+    .modal-content{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;width:100%;max-width:400px;margin:20px}
+    .modal h3{margin-bottom:20px;color:#00d4ff}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;font-size:13px;color:#aaa}
+    .form-group input,.form-group select{width:100%;padding:12px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:rgba(0,0,0,0.3);color:#eee;font-size:14px}
+    .form-group input:focus{outline:none;border-color:#00d4ff}
+    .modal-actions{display:flex;gap:12px;margin-top:24px}
+    .modal-actions button{flex:1;padding:12px;border:none;border-radius:8px;font-weight:600;cursor:pointer}
+    .btn-save{background:linear-gradient(135deg,#00d4ff 0%,#0099ff 100%);color:#001}
+    .btn-cancel{background:rgba(255,255,255,0.1);color:#eee}
+    .call-timer{display:none;text-align:center;font-size:14px;color:#888;margin-top:16px;font-family:monospace}
+    .call-timer.active{display:block}
+    .muted{color:#f44336 !important}
+    .hidden{display:none !important}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button class="settings-btn" onclick="openSettings()" title="Ayarlar">⚙</button>
+    <h1>VoIP Dialer</h1>
+    <div class="status disconnected" id="status">Bağlantı kesildi</div>
+    <div class="display" id="display">0</div>
+    <div class="call-timer" id="callTimer">00:00</div>
+    <div class="dialpad">
+      <button class="btn" onclick="inputDigit('1')">1</button>
+      <button class="btn" onclick="inputDigit('2')">2<span>ABC</span></button>
+      <button class="btn" onclick="inputDigit('3')">3<span>DEF</span></button>
+      <button class="btn" onclick="inputDigit('4')">4<span>GHI</span></button>
+      <button class="btn" onclick="inputDigit('5')">5<span>JKL</span></button>
+      <button class="btn" onclick="inputDigit('6')">6<span>MNO</span></button>
+      <button class="btn" onclick="inputDigit('7')">7<span>PQRS</span></button>
+      <button class="btn" onclick="inputDigit('8')">8<span>TUV</span></button>
+      <button class="btn" onclick="inputDigit('9')">9<span>WXYZ</span></button>
+      <button class="btn" onclick="inputDigit('*')">*</button>
+      <button class="btn" onclick="inputDigit('0')">0<span>+</span></button>
+      <button class="btn" onclick="inputDigit('#')">#</button>
+      <button class="btn btn-call" id="btnCall" onclick="makeCall()">📞 Ara</button>
+      <button class="btn btn-hangup" id="btnHangup" onclick="hangup()">✕ Kapat</button>
+    </div>
+    <div class="controls">
+      <button class="control-btn" id="btnMute" onclick="toggleMute()">🔇 Sessiz</button>
+      <button class="control-btn" id="btnHold" onclick="toggleHold()">⏸ Tut</button>
+      <button class="control-btn" id="btnDTMF" onclick="toggleDTMF()">🔢 DTMF</button>
+    </div>
+  </div>
+
+  <div class="modal" id="settingsModal">
+    <div class="modal-content">
+      <h3>⚙ SIP / WebRTC Ayarları</h3>
+      <div class="form-group">
+        <label>WebSocket URL (wss://)</label>
+        <input type="text" id="wsUrl" placeholder="wss://YOUR_SERVER:8083">
+      </div>
+      <div class="form-group">
+        <label>SIP Kullanıcı Adı / Numara</label>
+        <input type="text" id="sipUser" placeholder="1000 veya sip:1000@domain">
+      </div>
+      <div class="form-group">
+        <label>SIP Şifresi</label>
+        <input type="password" id="sipPass" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label>Domain / Realm</label>
+        <input type="text" id="sipDomain" placeholder="voip.local veya IP">
+      </div>
+      <div class="form-group">
+        <label>STUN Sunucu</label>
+        <input type="text" id="stunServer" value="stun:stun.l.google.com:19302">
+      </div>
+      <div class="form-group">
+        <label>TURN Sunucu (opsiyonel)</label>
+        <input type="text" id="turnServer" placeholder="turn:turn.server:3478?transport=udp">
+      </div>
+      <div class="form-group">
+        <label>TURN Kullanıcı</label>
+        <input type="text" id="turnUser">
+      </div>
+      <div class="form-group">
+        <label>TURN Şifre</label>
+        <input type="password" id="turnPass">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeSettings()">İptal</button>
+        <button class="btn-save" onclick="saveSettings()">Kaydet & Bağlan</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sip.js@0.20.0/dist/sip.min.js"></script>
+  <script>
+    let ua = null, session = null, callStartTime = null, timerInterval = null;
+    let isMuted = false, isHeld = false, dtmfMode = false;
+
+    const display = document.getElementById('display');
+    const statusEl = document.getElementById('status');
+    const btnCall = document.getElementById('btnCall');
+    const btnHangup = document.getElementById('btnHangup');
+    const btnMute = document.getElementById('btnMute');
+    const btnHold = document.getElementById('btnHold');
+    const callTimer = document.getElementById('callTimer');
+
+    function loadSettings() {
+      const s = JSON.parse(localStorage.getItem('voipSettings') || '{}');
+      document.getElementById('wsUrl').value = s.wsUrl || 'wss://YOUR_SERVER:8083';
+      document.getElementById('sipUser').value = s.sipUser || '';
+      document.getElementById('sipPass').value = s.sipPass || '';
+      document.getElementById('sipDomain').value = s.sipDomain || '';
+      document.getElementById('stunServer').value = s.stunServer || 'stun:stun.l.google.com:19302';
+      document.getElementById('turnServer').value = s.turnServer || '';
+      document.getElementById('turnUser').value = s.turnUser || '';
+      document.getElementById('turnPass').value = s.turnPass || '';
+    }
+
+    function saveSettings() {
+      const s = {
+        wsUrl: document.getElementById('wsUrl').value.trim(),
+        sipUser: document.getElementById('sipUser').value.trim(),
+        sipPass: document.getElementById('sipPass').value,
+        sipDomain: document.getElementById('sipDomain').value.trim(),
+        stunServer: document.getElementById('stunServer').value.trim(),
+        turnServer: document.getElementById('turnServer').value.trim(),
+        turnUser: document.getElementById('turnUser').value.trim(),
+        turnPass: document.getElementById('turnPass').value
+      };
+      localStorage.setItem('voipSettings', JSON.stringify(s));
+      closeSettings();
+      connectSIP(s);
+    }
+
+    function connectSIP(s) {
+      if (ua) { ua.stop(); ua = null; }
+      if (!s.wsUrl || !s.sipUser || !s.sipDomain) { setStatus('error', 'Ayarlar eksik!'); return; }
+      setStatus('connecting', 'Bağlanıyor...');
+
+      const uri = `sip:${s.sipUser}@${s.sipDomain}`;
+      const iceServers = [{ urls: s.stunServer }];
+      if (s.turnServer && s.turnUser && s.turnPass) {
+        iceServers.push({ urls: s.turnServer, username: s.turnUser, credential: s.turnPass });
+      }
+
+      ua = new SIP.UA({
+        uri,
+        transportOptions: { wsServers: [s.wsUrl], connectionTimeout: 10 },
+        authorizationUser: s.sipUser,
+        password: s.sipPass,
+        sessionDescriptionHandlerFactoryOptions: {
+          constraints: { audio: true, video: false },
+          peerConnectionOptions: { iceServers }
+        },
+        register: true,
+        registerOptions: { expires: 300 }
+      });
+
+      ua.on('registered', () => setStatus('connected', 'Kayıtlı ✓'));
+      ua.on('unregistered', () => setStatus('disconnected', 'Kayıt silindi'));
+      ua.on('registrationFailed', e => setStatus('error', `Kayıt hatası: ${e.cause}`));
+      ua.on('transportError', () => setStatus('error', 'Bağlantı hatası'));
+      ua.on('invite', handleIncomingCall);
+    }
+
+    function buildIceServers(s) { return [{ urls: s.stunServer }].concat(s.turnServer && s.turnUser && s.turnPass ? [{ urls: s.turnServer, username: s.turnUser, credential: s.turnPass }] : []); }
+
+    function setStatus(type, text) {
+      statusEl.className = `status ${type}`;
+      statusEl.textContent = text;
+    }
+
+    function inputDigit(d) {
+      if (dtmfMode && session) { session.dtmf(d); return; }
+      display.textContent = display.textContent === '0' ? d : display.textContent + d;
+    }
+
+    function makeCall() {
+      const number = display.textContent.trim();
+      if (!number || number === '0' || !ua?.isRegistered()) { setStatus('error', 'SIP kayıtlı değil'); return; }
+      const target = `sip:${number}@${getDomain()}`;
+      session = ua.invite(target, { sessionDescriptionHandlerOptions: { constraints: { audio: true, video: false } } });
+      setupSessionHandlers();
+      btnCall.classList.add('hidden'); btnHangup.classList.add('active');
+      callTimer.classList.add('active'); startCallTimer();
+      setStatus('active', `Aranıyor: ${number}`);
+    }
+
+    function handleIncomingCall(incoming) {
+      session = incoming;
+      setupSessionHandlers();
+      const caller = session.remoteIdentity.uri.user;
+      display.textContent = caller;
+      btnCall.classList.add('hidden'); btnHangup.classList.add('active');
+      setStatus('active', `Gelen: ${caller}`);
+      session.accept({ sessionDescriptionHandlerOptions: { constraints: { audio: true, video: false } } });
+      startCallTimer();
+    }
+
+    function setupSessionHandlers() {
+      session.on('accepted', () => { setStatus('active', 'Aktif: ' + display.textContent); attachAudio(); });
+      session.on('ended', endCall);
+      session.on('failed', e => { setStatus('error', `Başarısız: ${e.cause}`); endCall(); });
+      session.on('hold', () => { isHeld = true; btnHold.classList.add('active'); });
+      session.on('unhold', () => { isHeld = false; btnHold.classList.remove('active'); });
+      session.on('muted', () => { isMuted = true; btnMute.classList.add('active'); });
+      session.on('unmuted', () => { isMuted = false; btnMute.classList.remove('active'); });
+    }
+
+    function attachAudio() {
+      if (session?.sessionDescriptionHandler) {
+        const pc = session.sessionDescriptionHandler.peerConnection;
+        if (pc) {
+          const remoteStream = new MediaStream();
+          pc.getReceivers().forEach(r => { if (r.track && r.track.kind === 'audio') remoteStream.addTrack(r.track); });
+          const audio = new Audio(); audio.srcObject = remoteStream; audio.play().catch(() => {});
+        }
+      }
+    }
+
+    function hangup() { if (session) { session.terminate(); session = null; } endCall(); }
+
+    function endCall() {
+      btnCall.classList.remove('hidden'); btnHangup.classList.remove('active');
+      callTimer.classList.remove('active'); stopCallTimer();
+      display.textContent = '0';
+      setStatus(ua?.isRegistered() ? 'connected' : 'disconnected', ua?.isRegistered() ? 'Kayıtlı ✓' : 'Bağlantı kesildi');
+    }
+
+    function toggleMute() { if (!session) return; isMuted ? session.unmute() : session.mute(); }
+    function toggleHold() { if (!session) return; isHeld ? session.unhold() : session.hold(); }
+    function toggleDTMF() { dtmfMode = !dtmfMode; document.getElementById('btnDTMF').classList.toggle('active', dtmfMode); }
+
+    function startCallTimer() { callStartTime = Date.now(); timerInterval = setInterval(() => { const d = Date.now() - callStartTime; callTimer.textContent = `${String(Math.floor(d/60000)).padStart(2,'0')}:${String(Math.floor((d%60000)/1000)).padStart(2,'0')}`; }, 1000); }
+    function stopCallTimer() { clearInterval(timerInterval); }
+
+    function getDomain() { return JSON.parse(localStorage.getItem('voipSettings') || '{}').sipDomain || ''; }
+
+    function openSettings() { document.getElementById('settingsModal').classList.add('active'); loadSettings(); }
+    function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); }
+
+    document.addEventListener('DOMContentLoaded', loadSettings);
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.key >= '0' && e.key <= '9') inputDigit(e.key);
+      else if (e.key === '*' || e.key === '#') inputDigit(e.key);
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); makeCall(); }
+      else if (e.key === 'Escape') hangup();
+      else if (e.key === 'm') toggleMute();
+      else if (e.key === 'h') toggleHold();
+    });
+  </script>
+</body>
+</html>

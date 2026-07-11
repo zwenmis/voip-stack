@@ -1,0 +1,18 @@
+<include>
+  <X-PRE-PROCESS cmd="set" data="EXTERNAL_IP=auto"/>
+  <X-PRE-PROCESS cmd="set" data="TLS_CERT_DIR=/etc/freeswitch/tls"/>
+  <X-PRE-PROCESS cmd="set" data="TLS_VERSION=tlsv1.2,tlsv1.3"/>
+  <X-PRE-PROCESS cmd="set" data="TLS_CIPHERS=HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4"/>
+
+  <X-PRE-PROCESS cmd="set" data="SIP_TRUNK_USERNAME=${SIP_TRUNK_USER}"/>
+  <X-PRE-PROCESS cmd="set" data="SIP_TRUNK_PASSWORD=${SIP_TRUNK_PASS}"/>
+  <X-PRE-PROCESS cmd="set" data="SIP_TRUNK_REALM=${SIP_TRUNK_DOMAIN}"/>
+  <X-PRE-PROCESS cmd="set" data="SIP_TRUNK_PROXY=${SIP_TRUNK_PROXY}"/>
+
+  <X-PRE-PROCESS cmd="set" data="OUTBOUND_CALLER_ID_NUMBER=${OUTBOUND_CALLER_ID_NUMBER}"/>
+  <X-PRE-PROCESS cmd="set" data="OUTBOUND_CALLER_ID_NAME=${OUTBOUND_CALLER_ID_NAME}"/>
+
+  <X-PRE-PROCESS cmd="set" data="TURN_SERVER=${EXTERNAL_IP}"/>
+  <X-PRE-PROCESS cmd="set" data="TURN_USER=${TURN_USER}"/>
+  <X-PRE-PROCESS cmd="set" data="TURN_PASS=${TURN_PASS}"/>
+</include>
