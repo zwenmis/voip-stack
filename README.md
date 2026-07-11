@@ -33,7 +33,7 @@ Production-ready, self-hosted WebRTC VoIP yığını. Tek bir VDS'de Docker ile 
 
 ```bash
 # 1. VDS'ye klonla
-git clone https://github.com/KULLANICI_ADIN/voip-stack.git /opt/voip-stack
+git clone https://github.com/zwenmis/voip-stack.git /opt/voip-stack
 cd /opt/voip-stack
 
 # 2. Ortam değişkenlerini ayarla
